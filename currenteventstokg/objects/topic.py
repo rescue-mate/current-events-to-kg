@@ -5,19 +5,26 @@ from currenteventstokg.objects.article import Article
 from typing import List, Optional
 
 
-class Topic():
-    def __init__(self, raw: str, text: str, article: Optional[Article], parentTopics: List["Topic"],
-                 date: date, index: int, sourceUrl: str):
+class Topic:
+    def __init__(
+            self,
+            raw: str,
+            text: str,
+            article: Optional[Article],
+            parent_topics: List['Topic'],
+            date: date,
+            index: int,
+            source_url: str
+    ):
         self.raw = raw
         self.text = text
-        self.parentTopics = parentTopics
+        self.parent_topics = parent_topics
         self.article = article
         self.date = date
         self.index = index # n-th topic of the day [0-n]
-        self.sourceUrl = sourceUrl
+        self.source_url = source_url
         
-    
     def __str__(self):
-        return "raw[:100]:" + str(self.raw)[:100] +"\n"\
-            + "text:" + str(self.text) +"\n"\
-            + "parentTopics:" + str(self.parentTopics)+"\n"
+        return 'raw[:100]:' + str(self.raw)[:100] + '\n' \
+            + 'text:' + str(self.text) + '\n' \
+            + 'parentTopics:' + str(self.parent_topics) + '\n'
