@@ -3,13 +3,22 @@
 
 from typing import Optional
 
-class Link():
-    def __init__(self, href:str, text:str, startPos:int, endPos:int, external:bool=False, article:Optional["Article"]=None):
+from currenteventstokg.objects.article import Article
+
+
+class Link:
+    def __init__(
+            self,
+            href: str,
+            text: str,
+            start_pos: int,
+            end_pos: int,
+            external: bool = False,
+            article: Optional[Article] = None
+    ):
         self.href = href
         self.text = text
-        self.startPos = startPos
-        self.endPos = endPos
+        self.start_pos = start_pos
+        self.end_pos = end_pos
         self.external = external
         self.article = article
-    
-    
