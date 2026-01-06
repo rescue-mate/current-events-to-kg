@@ -13,12 +13,10 @@ class Link:
             text: str,
             start_pos: int,
             end_pos: int,
-            external: bool = False,
             article: Optional[Article] = None
     ):
         self.href = href
         self.text = text
         self.start_pos = start_pos
         self.end_pos = end_pos
-        self.external = external
         self.article = article
