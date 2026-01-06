@@ -1,30 +1,23 @@
-# Copyright: (c) 2022, Lars Michaelis
+# Copyright: (c) 2022, Lars Michaelis, Patrick Westphal
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
-from time import time, sleep
-from typing import Tuple
+import time
 
 class Sleeper:
 
     def __init__(self):
-        self.lastReq = 0
+        self.last_request_timestamp: float = .0
 
-    def sleepUntilNewRequestLegal(self, minSecondsBetweenQueries:float) -> Tuple[float,float]:
-        now = time()
-        diff = now - self.lastReq
-        t = minSecondsBetweenQueries - diff
+    def sleep_until_new_request_allowed(self, min_seconds_between_queries: float):
 
-        # if you already waited longer
-        if(t < 0):
-            t = 0
-        
-        sleep(t)
+        # get the time lapsed since the last call
+        now: float = time.time()
+        time_lapsed_since_last_call: float = now - self.last_request_timestamp
 
-        exclude = self.lastReq == 0
+        sleep_time: float = min_seconds_between_queries - time_lapsed_since_last_call
 
-        self.lastReq = time()
+        # check if we already waited longer
+        if sleep_time > .0:
+            time.sleep(sleep_time)
 
-        if exclude: #exclude first diff with >8000000
-            return -1.0, t
-        else:
-            return diff, t
+        self.last_request_timestamp = time.time()
