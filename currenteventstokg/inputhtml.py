@@ -97,7 +97,7 @@ class InputHtml(Sleeper):
             try:
                 return requests.get(url)
             except Exception as e:
-                logger.error('inputHtml.py HTTP request #' + str(t + 1))
+                logger.error('inputhtml.py HTTP request #' + str(t + 1))
                 logger.error(e)
                 if t == 2:
                     raise e
