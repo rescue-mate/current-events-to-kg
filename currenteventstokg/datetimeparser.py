@@ -183,24 +183,24 @@ class DateTimeParser:
 
         dm = day + r'\s+' + month
         dmy = dm + r'\s+' + year
-        dmyOn = dm + r'\s+' + year + to + ongoing
+        dmy_on = dm + r'\s+' + year + to + ongoing
         ddmy = day + to + day2 + r'\s+' + month + r'\s+' + year
         dmdmy = dm + to + day2 + r'\s+' + month2 + r'\s+' + year
         dmydmy = dmy + to + day2 + r'\s+' + month2 + r'\s+' + year2
         re_dmy = re.compile(dmy)
-        re_dmyOn = re.compile(dmyOn)
+        re_dmy_on = re.compile(dmy_on)
         re_ddmy = re.compile(ddmy)
         re_dmdmy = re.compile(dmdmy)
         re_dmydmy = re.compile(dmydmy)
 
         md = month + r'\s*(?:/|\s)\s*' + day
         mdy = md + r'\s*[/,]\s*' + year
-        mdyOn = md + r'\s*[/,]\s*' + year + to + ongoing
+        mdy_on = md + r'\s*[/,]\s*' + year + to + ongoing
         mddy = md + to + day2 + r'\s*[/,]\s*' + year
         mdmdy = md + to + month2 + r'\s*' + day2 + r'\s*[/,]\s*' + year
         mdymdy = mdy + to + month2 + r'\s*(?:/|\s)\s*' + day2 + r'\s*[/,]\s*' + year2
         re_mdy = re.compile(mdy)
-        re_mdyOn = re.compile(mdyOn)
+        re_mdy_on = re.compile(mdy_on)
         re_mddy = re.compile(mddy)
         re_mdmdy = re.compile(mdmdy)
         re_mdymdy = re.compile(mdymdy)
@@ -212,8 +212,8 @@ class DateTimeParser:
             re_dmdmy,
             re_mddy,
             re_ddmy,
-            re_mdyOn,
-            re_dmyOn,
+            re_mdy_on,
+            re_dmy_on,
             re_mdy,
             re_dmy
         ]
