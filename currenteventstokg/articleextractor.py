@@ -233,7 +233,7 @@ SELECT DISTINCT ?i WHERE {
 
             query_result = wikidata_one_hop_graph.query(query)
             #for row in query_result:
-            #    entity_instances.append(row.input_html)  # FIXME: looks wrong
+            #    entity_instances.append(row.input_html)  # looks wrong, fix below
 
             for result_row in query_result['results']['bindings']:
                 value: str = result_row['i']['value']
