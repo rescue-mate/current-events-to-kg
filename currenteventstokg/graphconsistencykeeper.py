@@ -1,69 +1,89 @@
 # Copyright: (c) 2023, Lars Michaelis
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
-
+import logging
 from string import Template
-from typing import Generator, List, Optional
+from typing import Generator, List, Optional, Set
 
-from rdflib import RDF, Graph, URIRef
 from SPARQLWrapper import DIGEST, JSON, POST, QueryResult, SPARQLWrapper, BASIC
+from rdflib import RDF, Graph, URIRef
+from rdflib.query import Result
 
 from . import COY, GN
-from argparse import ArgumentParser
+
+
+logger = logging.getLogger(__name__)
 
 
 class GraphConsistencyKeeper:
-    def __init__(self, 
-            sparql_endpoint:str, subgraph:str, sparql_endpoint_user:Optional[str], 
-            sparql_endpoint_pw:Optional[str], sparql_endpoint_auth_type:str
-        ):
-        self.subgraph = subgraph
-        self.potential_from_clause = f"FROM <{self.subgraph}>" if self.subgraph else ""
-        self.potential_with_clause = f"WITH <{self.subgraph}>" if self.subgraph else ""
+    """
+    FIXME: too CoyPu specific
 
-        self.sparql = SPARQLWrapper(sparql_endpoint)
-        self.sparql.setMethod(POST)
-        self.sparql.setReturnFormat(JSON)
+    Idea: Write cleanup step functions that can be registered for
+    inserts/updates/delete operations on resource of specific type (Python
+    class or RDF type)
+    """
+    def __init__(
+            self,
+            sparql_endpoint: str,
+            subgraph_name: str,
+            sparql_endpoint_user: Optional[str],
+            sparql_endpoint_pw: Optional[str],
+            sparql_endpoint_auth_type: str
+    ):
+        self.subgraph_name: str = subgraph_name
+
+        self.potential_from_clause: str = \
+            f'FROM <{self.subgraph_name}>' if self.subgraph_name else ''
+
+        self.potential_with_clause: str = \
+            f'WITH <{self.subgraph_name}>' if self.subgraph_name else ''
+
+        self.sparql_endpoint: SPARQLWrapper = SPARQLWrapper(sparql_endpoint)
+        self.sparql_endpoint.setMethod(POST)
+        self.sparql_endpoint.setReturnFormat(JSON)
 
         if sparql_endpoint_user and sparql_endpoint_pw:
-            if sparql_endpoint_auth_type == "digest":
-                self.sparql.setHTTPAuth(DIGEST)
-            elif sparql_endpoint_auth_type == "basic":
-                self.sparql.setHTTPAuth(BASIC)
+            if sparql_endpoint_auth_type == 'digest':
+                self.sparql_endpoint.setHTTPAuth(DIGEST)
+            elif sparql_endpoint_auth_type == 'basic':
+                self.sparql_endpoint.setHTTPAuth(BASIC)
             else:
-                raise ValueError("Auth type must be either 'digest' or 'basic'")
-            self.sparql.setCredentials(sparql_endpoint_user, sparql_endpoint_pw)
-            
+                raise ValueError('Auth type must be either \'digest\' or \'basic\'')
 
+            self.sparql_endpoint.setCredentials(sparql_endpoint_user, sparql_endpoint_pw)
+            
         elif sparql_endpoint_user or sparql_endpoint_pw:
             # only one is defined
-            raise Exception("Dataset SPAQRL endpoint credentials incomplete.")
+            raise Exception("Dataset SPARQL endpoint credentials incomplete.")
         
-        self.already_deleted_article_and_location_triples = set()
-        self.already_deleted_topic_triples = set()
-        self.already_deleted_newssummary_triples = set()
-        self.already_deleted_news_source_triples = set()
-        self.already_deleted_osmelement_triples = set()
-        self.already_deleted_label_triples = set()
+        self.already_deleted_articles: Set[URIRef] = set()
+        self.already_deleted_topics: Set[URIRef] = set()
+        self.already_deleted_news_summaries: Set[URIRef] = set()
+        self.already_deleted_news_sources: Set[URIRef] = set()
+        self.already_deleted_osm_elements: Set[URIRef] = set()
+        self.already_deleted_labeled_resources: Set[URIRef] = set()
     
+    def __query(self, query_str: str) -> Optional[QueryResult]:
+        self.sparql_endpoint.setQuery(query_str)
 
-    def __query(self, q:str) -> QueryResult:
-        self.sparql.setQuery(q)
-        for t in range(1,3):
+        for t in range(1, 3):
             try:
-                return self.sparql.query()
+                return self.sparql_endpoint.query()
+
             except Exception as e:
-                print(f"\ngraphConsistencyKeeper.py query try #{t} failed! Exception:")
-                print(e)
+                logger.error(
+                    f'graphConsistencyKeeper.py query try #{t} failed with '
+                    f'following exception: {e}'
+                )
+
                 if t == 2:
                     raise e
 
+    def __query_and_convert(self, query_str: str) -> QueryResult.ConvertResult:
+        return self.__query(query_str).convert()
 
-    def __query_and_convert(self, q:str) -> QueryResult.ConvertResult:
-        return self.__query(q).convert()
-
-
-    def __query_associated_articles(self, uri:URIRef) -> List[URIRef]:
-        q = Template("""
+    def __query_associated_articles(self, resource_uri:URIRef) -> List[URIRef]:
+        query_str: str = Template("""
 PREFIX gn: <https://www.geonames.org/ontology#>
 
 SELECT DISTINCT ?a ${subgraph} WHERE {
@@ -71,21 +91,21 @@ SELECT DISTINCT ?a ${subgraph} WHERE {
 
 }""").substitute(
             subgraph=self.potential_from_clause, 
-            uri=uri.n3())
+            uri=resource_uri.n3()
+        )
         
-        res = self.__query_and_convert(q)
+        query_result: QueryResult.ConvertResult = self.__query_and_convert(query_str)
 
-        binds = res["results"]["bindings"]
+        bindings = query_result['results']['bindings']
         article_uris = []
-        for bind in binds:
-            article_uri = URIRef(bind["a"]["value"])
+        for binding in bindings:
+            article_uri = URIRef(binding['a']['value'])
             article_uris.append(article_uri)
         
         return article_uris
 
-    
-    def __query_mentioned_articles(self, newssummary_uri:URIRef) -> List[URIRef]:
-        q = Template("""
+    def __query_mentioned_articles(self, news_summary_uri: URIRef) -> List[URIRef]:
+        query_str: str = Template("""
 PREFIX coy:<https://schema.coypu.org/global#>
 PREFIX gn: <https://www.geonames.org/ontology#>
 PREFIX nif: <http://persistence.uni-leipzig.org/nlp2rdf/ontologies/nif-core#>
@@ -99,27 +119,27 @@ SELECT DISTINCT ?a ${subgraph} WHERE {
 
 }""").substitute(
             subgraph=self.potential_from_clause, 
-            uri=newssummary_uri.n3())
+            uri=news_summary_uri.n3()
+        )
         
-        res = self.__query_and_convert(q)
+        query_results: QueryResult.ConvertResult = self.__query_and_convert(query_str)
 
-        binds = res["results"]["bindings"]
+        bindings = query_results['results']['bindings']
         article_uris = []
-        for bind in binds:
-            uri_str = bind["a"]["value"]
+
+        for bind in bindings:
+            uri_str = bind['a']['value']
             article_uris.append(URIRef(uri_str))
         
         return article_uris
 
-
-
-    def delete_article_and_location_triples(self, article_uri:URIRef):
+    def delete_article_and_location_triples(self, article_uri: URIRef):
         # skip if already deleted
-        if article_uri in self.already_deleted_article_and_location_triples:
+        if article_uri in self.already_deleted_articles:
             return
 
-        q = Template("""
-PREFIX coy:<https://schema.coypu.org/global#>
+        query_str: str = Template("""
+PREFIX coy: <https://schema.coypu.org/global#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX gn: <https://www.geonames.org/ontology#>
 PREFIX owl: <http://www.w3.org/2002/07/owl#>
@@ -201,20 +221,17 @@ DELETE {
             subgraph=self.potential_with_clause, 
             uri=article_uri.n3())
 
-        self.__query(q)
+        self.__query(query_str)
 
         # track as already deleted
-        self.already_deleted_article_and_location_triples.add(article_uri)
+        self.already_deleted_articles.add(article_uri)
 
-
-    
-
-    def delete_topic_triples(self, topic_uri:URIRef):
+    def delete_topic_triples(self, topic_uri: URIRef):
         # skip if already deleted
-        if topic_uri in self.already_deleted_topic_triples:
+        if topic_uri in self.already_deleted_topics:
             return
 
-        ## if its an ArticleTopic:
+        # if it's an ArticleTopic:
         # query article of topic before deleting
         article_uris = self.__query_associated_articles(topic_uri)
 
@@ -223,8 +240,8 @@ DELETE {
             self.delete_article_and_location_triples(article_uri)
         
         ## delete topic triples
-        q = Template("""
-PREFIX coy:<https://schema.coypu.org/global#>
+        query_str: str = Template("""
+PREFIX coy: <https://schema.coypu.org/global#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX gn: <https://www.geonames.org/ontology#>
 
@@ -265,22 +282,21 @@ DELETE {
 
 }""").substitute(
             subgraph=self.potential_with_clause, 
-            uri=topic_uri.n3())
+            uri=topic_uri.n3()
+        )
         
-        self.__query(q)
+        self.__query(query_str)
 
         # track as already deleted
-        self.already_deleted_topic_triples.add(topic_uri)
+        self.already_deleted_topics.add(topic_uri)
 
-    
-
-    def delete_newssummary_triples(self, newssummary_uri:URIRef):
+    def delete_news_summary_triples(self, news_summary_uri: URIRef):
         # skip if already deleted
-        if newssummary_uri in self.already_deleted_newssummary_triples:
+        if news_summary_uri in self.already_deleted_news_summaries:
             return
         
-        q = Template("""
-PREFIX coy:<https://schema.coypu.org/global#>
+        query_str: str = Template("""
+PREFIX coy: <https://schema.coypu.org/global#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX gn: <https://www.geonames.org/ontology#>
 PREFIX dcterms: <http://purl.org/dc/terms/>
@@ -372,21 +388,19 @@ DELETE {
     
 }""").substitute(
             subgraph=self.potential_with_clause, 
-            uri=newssummary_uri.n3())
+            uri=news_summary_uri.n3())
 
-        self.__query(q)
+        self.__query(query_str)
 
         # track as already deleted
-        self.already_deleted_newssummary_triples.add(newssummary_uri)
+        self.already_deleted_news_summaries.add(news_summary_uri)
 
-
-
-    def delete_news_source_triples(self, uri:URIRef):
+    def delete_news_source_triples(self, news_source_uri: URIRef):
         # skip if already deleted
-        if uri in self.already_deleted_news_source_triples:
+        if news_source_uri in self.already_deleted_news_sources:
             return
 
-        q = Template("""
+        query_str: str = Template("""
 PREFIX coy:<https://schema.coypu.org/global#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 
@@ -402,22 +416,21 @@ DELETE {
         rdfs:label ?l.
 
 }""").substitute(
-            subgraph=f"WITH <{self.subgraph}>" if self.subgraph else "", 
-            uri=uri.n3())
+            subgraph=f'WITH <{self.subgraph_name}>' if self.subgraph_name else '',
+            uri=news_source_uri.n3())
 
-        res = self.__query(q)
+        # run DELETE 'query'/operation
+        self.__query(query_str)
 
         # track as already deleted
-        self.already_deleted_news_source_triples.add(uri)
+        self.already_deleted_news_sources.add(news_source_uri)
 
-
-
-    def delete_osmelement_triples(self, uri:URIRef):
+    def delete_osm_element_triples(self, osm_element_uri: URIRef):
         # skip if already deleted
-        if uri in self.already_deleted_osmelement_triples:
+        if osm_element_uri in self.already_deleted_osm_elements:
             return
         
-        q = Template("""
+        query_str: str = Template("""
 PREFIX coy:<https://schema.coypu.org/global#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX geo: <http://www.opengis.net/ont/geosparql#>
@@ -441,21 +454,20 @@ DELETE {
 
 }""").substitute(
             subgraph=self.potential_with_clause, 
-            uri=uri.n3())
+            uri=osm_element_uri.n3())
 
-        res = self.__query(q)
+        # run DELETE 'query'/operation
+        self.__query(query_str)
 
         # track as already deleted
-        self.already_deleted_osmelement_triples.add(uri)
+        self.already_deleted_osm_elements.add(osm_element_uri)
 
-
-    
-    def delete_label_triples(self, uri:URIRef):
+    def delete_label_triples(self, uri: URIRef):
         # skip if already deleted
-        if uri in self.already_deleted_label_triples:
+        if uri in self.already_deleted_labeled_resources:
             return
 
-        q = Template("""
+        query_str: str = Template("""
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 
 ${subgraph}
@@ -471,15 +483,15 @@ DELETE  {
             subgraph=self.potential_with_clause, 
             uri=uri.n3())
 
-        res = self.__query(q)
+        # Run DELETE 'query'/operation
+        self.__query(query_str)
 
         # track as already deleted
-        self.already_deleted_label_triples.add(uri)
+        self.already_deleted_labeled_resources.add(uri)
 
-        
-
-    def query_wd_class_uris_which_have_label(self, g:Graph) -> Generator:
-        q = """
+    @staticmethod
+    def query_wikidata_class_uris_having_a_label(g: Graph) -> Generator:
+        query_str: str = """
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 
@@ -488,77 +500,90 @@ SELECT DISTINCT ?c WHERE {
     ?c rdfs:label ?l.
 }"""
 
-        qres = g.query(q)
-        for row in qres:
+        query_results: Result = g.query(query_str)
+        for row in query_results:
             yield URIRef(row.c)
 
-
-
-    def delete_old_triples_in_endpoint(self, new_graph:Graph):
+    def delete_old_triples_in_endpoint(self, new_graph: Graph):
         article_uris = new_graph.subjects(RDF.type, GN.WikipediaArticle, unique=True)
-        for uri in article_uris:
-            self.delete_article_and_location_triples(uri)
+        for article_uri in article_uris:
+            assert isinstance(article_uri, URIRef)
+            self.delete_article_and_location_triples(article_uri)
     
-        newssummary_uris = new_graph.subjects(RDF.type, COY.NewsSummary, unique=True)
-        for uri in newssummary_uris:
-            self.delete_newssummary_triples(uri)
+        news_summary_uris = new_graph.subjects(RDF.type, COY.NewsSummary, unique=True)
+        for news_summary_uri in news_summary_uris:
+            assert isinstance(news_summary_uri, URIRef)
+            self.delete_news_summary_triples(news_summary_uri)
         
         topic_uris = new_graph.subjects(RDF.type, COY.TextTopic, unique=True)
-        for uri in topic_uris:
-            self.delete_topic_triples(uri)
+        for topic_uri in topic_uris:
+            assert isinstance(topic_uri, URIRef)
+            self.delete_topic_triples(topic_uri)
     
-        osmelement_uris = new_graph.subjects(RDF.type, COY.OsmElement, unique=True)
-        for uri in osmelement_uris:
-            self.delete_osmelement_triples(uri)
+        osm_element_uris = new_graph.subjects(RDF.type, COY.OsmElement, unique=True)
+        for osm_element_uri in osm_element_uris:
+            assert isinstance(osm_element_uri, URIRef)
+            self.delete_osm_element_triples(osm_element_uri)
     
-        wd_class_uris = self.query_wd_class_uris_which_have_label(new_graph)
-        for uri in wd_class_uris:
-            self.delete_label_triples(uri)
-
-
-def add_dataset_endpoint_args(parser:ArgumentParser, required_endpoint:bool=False):
-    parser.add_argument('-de', '--dataset_endpoint',
-        action='store', 
-        help="Sets the sparql endpoint URL of the dataset from which data will be removed if the parent entities also exist in the graph.",
-        required=required_endpoint)
-    
-    parser.add_argument('-des', '--dataset_endpoint_subgraph',
-        action='store', 
-        help="The subgraph used for the dataset.")
-    
-    parser.add_argument('-deu', '--dataset_endpoint_username',
-        action='store', 
-        help="The username used for the dataset sparql endpoint.")
-    
-    parser.add_argument('-dep', '--dataset_endpoint_pw',
-        action='store', 
-        help="The password used for the dataset sparql endpoint.")
-    
-    parser.add_argument('-deat', '--dataset_endpoint_auth_type',
-        action='store', 
-        help="The auth type used for the dataset sparql endpoint.",
-        type=str,
-        choices=["basic", "digest"],
-        default="basic")
+        wikidata_class_uris = self.query_wikidata_class_uris_having_a_label(new_graph)
+        for wikidata_class_uri in wikidata_class_uris:
+            self.delete_label_triples(wikidata_class_uri)
     
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     import argparse
     import os
     from pathlib import Path
 
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
 
-    add_dataset_endpoint_args(parser)
-    
-    parser.add_argument('-i', '--input',
+    parser.add_argument(
+        '-i', '--input',
         action='store', 
-        help="The path of the base graph module file.",
-        required=True)
+        help='The path of the base graph module file.',
+        required=True
+    )
+
+    parser.add_argument(
+        '-de', '--dataset_endpoint',
+        action='store',
+        help='Sets the sparql endpoint URL of the dataset from which data '
+             'will be removed if the parent entities also exist in the graph.',
+        required=False
+    )
+
+    parser.add_argument(
+        '-des', '--dataset_endpoint_subgraph',
+        action='store',
+        help='The subgraph used for the dataset.'
+    )
+
+    parser.add_argument(
+        '-deu', '--dataset_endpoint_username',
+        action='store',
+        help='The username used for the dataset sparql endpoint.'
+    )
+
+    parser.add_argument(
+        '-dep', '--dataset_endpoint_pw',
+        action='store',
+        help='The password used for the dataset sparql endpoint.'
+    )
+
+    parser.add_argument(
+        '-deat', '--dataset_endpoint_auth_type',
+        action='store',
+        help='The auth type used for the dataset sparql endpoint.',
+        type=str,
+        choices=['basic', 'digest'],
+        default='basic'
+    )
     
     args = parser.parse_args()
     
-    gck = GraphConsistencyKeeper(
+    graph_consistency_keeper = GraphConsistencyKeeper(
         args.dataset_endpoint, 
         args.dataset_endpoint_subgraph, 
         args.dataset_endpoint_username, 
@@ -569,11 +594,10 @@ if __name__ == "__main__":
     # load all graph modules
     graph_new = Graph()
     base_path, base_filename = os.path.split(os.path.abspath(args.input))
-    for graph_module_name in ["base", "raw", "osm", "ohg"]:
-        filename = base_filename.replace("base", graph_module_name)
+
+    for graph_module_name in ['base', 'raw', 'osm', 'ohg']:
+        filename = base_filename.replace('base', graph_module_name)
         graph_new.parse(Path(base_path) / filename)
 
     # delete old versions extracted data from the endpoint, where a new version exists in the file
-    gck.delete_old_triples_in_endpoint(graph_new)
-
-
+    graph_consistency_keeper.delete_old_triples_in_endpoint(graph_new)
