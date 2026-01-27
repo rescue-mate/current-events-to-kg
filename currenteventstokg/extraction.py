@@ -10,14 +10,14 @@ from typing import Dict, Generator, List, Optional, Tuple, Union, Set
 from bs4 import BeautifulSoup, NavigableString, Tag, PageElement
 
 from .inputhtml import InputHtml
-from .objects.article import Article
+from .model.article import Article
 from .outputrdf import OutputRdf
 from .util import month_name_to_int
-from .objects.event import Event
-from .objects.link import Link
-from .objects.reference import Reference
-from .objects.sentence import Sentence
-from .objects.topic import Topic
+from .model.event import Event
+from .model.link import Link
+from .model.reference import Reference
+from .model.sentence import Sentence
+from .model.topic import Topic
 from .articleextractor import ArticleExtractor
 
 
