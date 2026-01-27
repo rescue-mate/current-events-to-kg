@@ -278,10 +278,10 @@ SELECT DISTINCT ?i WHERE {
             url=article_url,
             is_location=is_location,
             coordinates=coord,
-            infobox=str(infobox),
+            infobox_raw_text=str(infobox),
             infobox_rows=infobox_rows,
             infobox_coordinates=infobox_coordinates,
-            wikidata_geolocations=wiki_locations,
+            wikidata_osm_elements=wiki_locations,
             wikidata_entity=wikidata_entity_uri_str,
             wikidata_one_hop_graph=wikidata_one_hop_graph,
             parent_locations_and_relation=parent_locations_and_relation,
@@ -804,7 +804,7 @@ SELECT DISTINCT ?i WHERE {
                 falcon2_wikidata_entities=falcon_wikidata_entities,
                 falcon2_articles=falcon_articles,
                 falcon2_dbpedia_entities=falcon_dbpedia_entities,
-                value_links_wkts=location_link_to_osm_element
+                value_osm_element_links=location_link_to_osm_element
             )
 
         # extract coordinates from "Location" label
