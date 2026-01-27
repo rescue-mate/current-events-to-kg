@@ -15,8 +15,8 @@ class Link:
             end_pos: int,
             article: Optional[Article] = None
     ):
-        self.href = href
-        self.text = text
-        self.start_pos = start_pos
-        self.end_pos = end_pos
-        self.article = article
+        self.href: str = href
+        self.text: str = text
+        self.start_pos: int = start_pos
+        self.end_pos: int = end_pos
+        self.article: Optional[Article] = article

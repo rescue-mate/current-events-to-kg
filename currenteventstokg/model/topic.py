@@ -8,23 +8,23 @@ from typing import List, Optional
 class Topic:
     def __init__(
             self,
-            raw: str,
+            raw_text: str,
             text: str,
             article: Optional[Article],
             parent_topics: List['Topic'],
-            date: date,
+            date_: date,
             index: int,
             source_url: str
     ):
-        self.raw = raw
-        self.text = text
-        self.parent_topics = parent_topics
-        self.article = article
-        self.date = date
-        self.index = index # n-th topic of the day [0-n]
-        self.source_url = source_url
+        self.raw_text: str = raw_text
+        self.text: str = text
+        self.parent_topics: List['Topic'] = parent_topics
+        self.article: Optional[Article] = article
+        self.date: date = date_
+        self.index: int = index # n-th topic of the day [0-n]
+        self.source_url: str = source_url
         
     def __str__(self):
-        return 'raw[:100]:' + str(self.raw)[:100] + '\n' \
+        return 'raw[:100]:' + str(self.raw_text)[:100] + '\n' \
             + 'text:' + str(self.text) + '\n' \
             + 'parentTopics:' + str(self.parent_topics) + '\n'

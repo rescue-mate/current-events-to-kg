@@ -1,0 +1,8 @@
+# Copyright: (c) 2022, Lars Michaelis
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+
+class OSMElement:
+    def __init__(self, osm_id: str, osm_type: str, wkt: str):
+        self.osm_id: str = osm_id
+        self.osm_type: str = osm_type
+        self.wkt: str = wkt
