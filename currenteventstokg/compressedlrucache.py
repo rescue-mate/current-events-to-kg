@@ -4,10 +4,9 @@
 __all__ = ['lru_cache']
 
 from _thread import RLock
-from functools import update_wrapper, wraps, WRAPPER_ASSIGNMENTS, WRAPPER_UPDATES, _HashedSeq, _make_key, _CacheInfo
+from functools import update_wrapper, _HashedSeq, _make_key, _CacheInfo
 from zstandard import ZstdCompressor, ZstdDecompressor
 from pickle import loads, dumps
-from pickletools import optimize
 
 ################################################################################
 ### LRU Cache function decorator
@@ -26,7 +25,7 @@ def lru_cache(maxsize=128, typed=False, compressed=True):
     For example, f(3.0) and f(3) will be treated as distinct calls with
     distinct results.
 
-    If *compressed* is True, cached objects are pickled and compressed using 
+    If *compressed* is True, cached objects are pickled and compressed using
     the zstandard module with all available threads.
 
     Arguments to the cached function must be hashable.
@@ -47,105 +46,135 @@ def lru_cache(maxsize=128, typed=False, compressed=True):
         # Negative maxsize is treated as 0
         if maxsize < 0:
             maxsize = 0
+
     elif callable(maxsize) and isinstance(typed, bool):
         # The user_function was passed in directly via the maxsize argument
-        user_function, maxsize = maxsize, 128
+        user_function = maxsize
+        maxsize = 128
         wrapper = _lru_cache_wrapper(user_function, maxsize, typed, compressed, _CacheInfo)
+
         wrapper.cache_parameters = lambda : {'maxsize': maxsize, 'typed': typed}
+
         return update_wrapper(wrapper, user_function)
+
     elif maxsize is not None:
         raise TypeError(
-            'Expected first argument to be an integer, a callable, or None')
+            'Expected first argument to be an integer, a callable, or None'
+        )
 
     def decorating_function(user_function):
         wrapper = _lru_cache_wrapper(user_function, maxsize, typed, compressed, _CacheInfo)
-        wrapper.cache_parameters = lambda : {'maxsize': maxsize, 'typed': typed, 'compressed': compressed}
+        wrapper.cache_parameters = \
+            lambda : {
+                'maxsize': maxsize,
+                'typed': typed,
+                'compressed': compressed
+            }
+
         return update_wrapper(wrapper, user_function)
 
     return decorating_function
 
-def compress_obj(obj, compressor:ZstdCompressor) -> bytes:
+def compress_obj(obj, compressor: ZstdCompressor) -> bytes:
     pickled_obj = dumps(obj)
-    optimized_pickled_obj = optimize(pickled_obj)
     compressed_obj = compressor.compress(pickled_obj)
+
     return compressed_obj
 
-def decompress_bytes(compressed:bytes, decompressor:ZstdDecompressor):
+def decompress_bytes(compressed: bytes, decompressor: ZstdDecompressor):
     pickled_obj = decompressor.decompress(compressed)
     result = loads(pickled_obj)
-    return result
 
+    return result
 
 def _lru_cache_wrapper(user_function, maxsize, typed, compressed, _CacheInfo):
     # Constants shared by all lru cache instances:
-    sentinel = object()          # unique object used to signal cache misses
-    make_key = _make_key         # build a key from the function arguments
-    PREV, NEXT, KEY, RESULT = 0, 1, 2, 3   # names for the link fields
+    sentinel = object()  # unique object used to signal cache misses
+    make_key = _make_key  # build a key from the function arguments
+
+    # names for the link fields
+    prev_field_index = 0
+    next_field_index = 1
+    key_field_index = 2
+    result_field_index = 3
 
     cache = {}
-    hits = misses = 0
-    full = False
-    cache_get = cache.get    # bound method to lookup a key or return None
+    hits: int = 0
+    misses: int = 0
+    is_full: bool = False
+    cache_get = cache.get  # bound method to lookup a key or return None
     cache_len = cache.__len__  # get cache size without calling len()
-    lock = RLock()           # because linkedlist updates aren't threadsafe
-    root = []                # root of the circular doubly linked list
-    root[:] = [root, root, None, None]     # initialize by pointing to self
-    compressor = ZstdCompressor(threads=-1)
-    decompressor = ZstdDecompressor()
+    lock: RLock = RLock()  # because linkedlist updates aren't threadsafe
+    root = []  # root of the circular doubly linked list
+    root[:] = [root, root, None, None]  # initialize by pointing to self
+    compressor: ZstdCompressor = ZstdCompressor(threads=-1)
+    decompressor: ZstdDecompressor = ZstdDecompressor()
 
     if maxsize == 0:
 
-        def wrapper(*args, **kwds):
+        def wrapper(*args, **kwargs):
             # No caching -- just a statistics update
             nonlocal misses
             misses += 1
-            result = user_function(*args, **kwds)
+            result = user_function(*args, **kwargs)
+
             return result
 
     elif maxsize is None:
 
-        def wrapper(*args, **kwds):
+        def wrapper(*args, **kwargs):
             # Simple caching without ordering or size limit
             nonlocal hits, misses, compressor, decompressor
-            key = make_key(args, kwds, typed)
+            key = make_key(args, kwargs, typed)
             result = cache_get(key, sentinel)
+
             if result is not sentinel:
                 hits += 1
                 if compressed:
                     result = decompress_bytes(result, decompressor)
                 return result
+
             misses += 1
-            result = user_function(*args, **kwds)
+            result = user_function(*args, **kwargs)
             if compressed:
                 result_to_cache = compress_obj(result, compressor)
+
             else:
                 result_to_cache = result
+
             cache[key] = result_to_cache
+
             return result
 
     else:
 
-        def wrapper(*args, **kwds):
+        def wrapper(*args, **kwargs):
             # Size limited caching that tracks accesses by recency
-            nonlocal root, hits, misses, full, compressor, decompressor
-            key = make_key(args, kwds, typed)
+            nonlocal root, hits, misses, is_full, compressor, decompressor
+            key = make_key(args, kwargs, typed)
+
             with lock:
                 link = cache_get(key)
                 if link is not None:
                     # Move the link to the front of the circular queue
                     link_prev, link_next, _key, result = link
-                    link_prev[NEXT] = link_next
-                    link_next[PREV] = link_prev
-                    last = root[PREV]
-                    last[NEXT] = root[PREV] = link
-                    link[PREV] = last
-                    link[NEXT] = root
+                    link_prev[next_field_index] = link_next
+                    link_next[prev_field_index] = link_prev
+                    last = root[prev_field_index]
+                    last[next_field_index] = root[prev_field_index] = link
+                    link[prev_field_index] = last
+                    link[next_field_index] = root
+
                     if compressed:
                         result = decompress_bytes(result, decompressor)
+
                     hits += 1
+
                     return result
+
                 misses += 1
-            result = user_function(*args, **kwds)
+            result = user_function(*args, **kwargs)
+
             if compressed:
                 result_to_cache = compress_obj(result, compressor)
             else:
@@ -158,35 +187,38 @@ def _lru_cache_wrapper(user_function, maxsize, typed, compressed, _CacheInfo):
                     # update is already done, we need only return the
                     # computed result and update the count of misses.
                     pass
-                elif full:
+
+                elif is_full:
                     # Use the old root to store the new key and result.
-                    oldroot = root
-                    oldroot[KEY] = key
-                    oldroot[RESULT] = result_to_cache
+                    old_root = root
+                    old_root[key] = key
+                    old_root[result] = result_to_cache
                     # Empty the oldest link and make it the new root.
                     # Keep a reference to the old key and old result to
                     # prevent their ref counts from going to zero during the
                     # update. That will prevent potentially arbitrary object
                     # clean-up code (i.e. __del__) from running while we're
                     # still adjusting the links.
-                    root = oldroot[NEXT]
-                    oldkey = root[KEY]
-                    oldresult = root[RESULT]
-                    root[KEY] = root[RESULT] = None
+                    root = old_root[next_field_index]
+                    old_key = root[key]
+                    root[key] = root[result] = None
+
                     # Now update the cache dictionary.
-                    del cache[oldkey]
+                    del cache[old_key]
                     # Save the potentially reentrant cache[key] assignment
                     # for last, after the root and links have been put in
                     # a consistent state.
-                    cache[key] = oldroot
+                    cache[key] = old_root
+
                 else:
                     # Put result in a new link at the front of the queue.
-                    last = root[PREV]
+                    last = root[prev_field_index]
                     link = [last, root, key, result_to_cache]
-                    last[NEXT] = root[PREV] = cache[key] = link
+                    last[next_field_index] = root[prev_field_index] = cache[key] = link
                     # Use the cache_len bound method instead of the len() function
                     # which could potentially be wrapped in an lru_cache itself.
-                    full = (cache_len() >= maxsize)
+                    is_full = cache_len() >= maxsize
+
             return result
 
     def cache_info():
@@ -196,14 +228,14 @@ def _lru_cache_wrapper(user_function, maxsize, typed, compressed, _CacheInfo):
 
     def cache_clear():
         """Clear the cache and cache statistics"""
-        nonlocal hits, misses, full
+        nonlocal hits, misses, is_full
         with lock:
             cache.clear()
             root[:] = [root, root, None, None]
             hits = misses = 0
-            full = False
+            is_full = False
 
     wrapper.cache_info = cache_info
     wrapper.cache_clear = cache_clear
-    return wrapper
 
+    return wrapper
