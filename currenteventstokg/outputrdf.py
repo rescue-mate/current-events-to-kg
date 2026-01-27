@@ -15,11 +15,11 @@ from . import (COY, WGS, GEO, WD, GN, SCHEMA, DCTERMS,
                sentences_ns, phrases_ns, locations_ns, osm_element_ns, point_ns,
                timespan_ns, wikipedia_article_ns)
 from .graphconsistencykeeper import GraphConsistencyKeeper
-from .objects.article import Article
-from .objects.event import Event
-from .objects.infoboxRow import InfoboxRowDate, InfoboxRowTime, InfoboxLocationRow
-from .objects.osmElement import OSMElement
-from .objects.topic import Topic
+from .model.article import Article
+from .model.event import Event
+from .model.infoboxRow import InfoboxRowDate, InfoboxRowTime, InfoboxLocationRow
+from .model.osmElement import OSMElement
+from .model.topic import Topic
 
 logger = logging.getLogger(__name__)
 
@@ -78,9 +78,9 @@ class OutputRdf:
 
     @staticmethod
     def __get_event_id(event: Event) -> str:
-        date = event.date
+        date_ = event.date_
 
-        return f'{date.year:04}-{date.month:02}-{date.day:02}_{event.event_index}'
+        return f'{date_.year:04}-{date_.month:02}-{date_.day:02}_{event.event_index}'
 
     @staticmethod
     def __get_wiki_article_url_identifier(article: Article) -> str:
@@ -711,7 +711,7 @@ class OutputRdf:
                 Literal(event.category, datatype=XSD.string)
             ))
         
-        self.__add_isodatetime_from_date(base_graph, event_uri, event.date)
+        self.__add_isodatetime_from_date(base_graph, event_uri, event.date_)
 
         raw_graph.add((
             event_uri,
