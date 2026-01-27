@@ -20,10 +20,10 @@ from .falconservice import Falcon2Service
 from .inputhtml import InputHtml
 from .lruCacheCompressed import lru_cache as lru_cache_compressed
 from .nominatimservice import NominatimService
-from .objects.article import Article
-from .objects.infoboxRow import InfoboxRow, InfoboxRowDate, InfoboxLocationRow, InfoboxRowTime
-from .objects.link import Link
-from .objects.osmElement import OSMElement
+from .model.article import Article
+from .model.infoboxRow import InfoboxRow, InfoboxRowDate, InfoboxLocationRow, InfoboxRowTime
+from .model.link import Link
+from .model.osmElement import OSMElement
 from .placetemplatesextractor import PlacesTemplatesExtractor
 from .wikidataservice import WikidataService
 
