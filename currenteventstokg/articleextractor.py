@@ -18,7 +18,7 @@ from rdflib import Graph, URIRef
 from .datetimeparser import DateTimeParser
 from .falconservice import Falcon2Service
 from .inputhtml import InputHtml
-from .lruCacheCompressed import lru_cache as lru_cache_compressed
+from .compressedlrucache import lru_cache as lru_cache_compressed
 from .nominatimservice import NominatimService
 from .model.article import Article
 from .model.infoboxRow import InfoboxRow, InfoboxRowDate, InfoboxLocationRow, InfoboxRowTime
