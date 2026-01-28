@@ -95,8 +95,6 @@ def _lru_cache_wrapper(user_function, maxsize, typed, compressed, _CacheInfo):
     # names for the link fields
     prev_field_index = 0
     next_field_index = 1
-    key_field_index = 2
-    result_field_index = 3
 
     cache = {}
     hits: int = 0
