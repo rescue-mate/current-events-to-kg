@@ -491,7 +491,7 @@ class Extraction:
             # only news references
             if 'class' in cite_tag.attrs and 'news' in cite_tag.attrs['class']:
                 anchor_tags = cite_tag.find_all('a')
-                ref_links = []
+
                 for anchor_tag in anchor_tags:
                     if 'href' in anchor_tag.attrs and \
                             'class' in anchor_tag.attrs and \
