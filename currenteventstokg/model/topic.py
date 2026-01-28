@@ -1,7 +1,7 @@
 # Copyright: (c) 2022, Lars Michaelis
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from datetime import date
-from currenteventstokg.objects.article import Article
+from currenteventstokg.model.article import Article
 from typing import List, Optional
 
 
@@ -27,4 +27,4 @@ class Topic:
     def __str__(self):
         return 'raw[:100]:' + str(self.raw_text)[:100] + '\n' \
             + 'text:' + str(self.text) + '\n' \
-            + 'parentTopics:' + str(self.parent_topics) + '\n'
+            + 'parent_topics:' + str(self.parent_topics) + '\n'
