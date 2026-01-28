@@ -1,11 +1,11 @@
 # Copyright: (c) 2022, Lars Michaelis
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 import datetime
-from currenteventstokg.objects.topic import Topic
-from currenteventstokg.objects.link import Link
-from currenteventstokg.objects.sentence import Sentence
-from currenteventstokg.objects.article import Article
-from currenteventstokg.objects.reference import Reference
+from currenteventstokg.model.topic import Topic
+from currenteventstokg.model.link import Link
+from currenteventstokg.model.sentence import Sentence
+from currenteventstokg.model.article import Article
+from currenteventstokg.model.reference import Reference
 
 from typing import Dict, List, Optional
 
@@ -33,7 +33,7 @@ class Event:
         # e.g. https://en.wikipedia.org/wiki/Portal:Current_events/January_2022
         self.source_url = source_url
 
-        self.date_: datetime.date = date_
+        self.date: datetime.date = date_
         self.sentences: List[Sentence] = sentences
         self.source_links: List[Link] = source_links #Links to eg a CNN article
         self.event_types: Dict[str, str] = event_types
