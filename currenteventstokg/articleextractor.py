@@ -21,7 +21,7 @@ from .inputhtml import InputHtml
 from .compressedlrucache import lru_cache as lru_cache_compressed
 from .nominatimservice import NominatimService
 from .model.article import Article
-from .model.infoboxRow import InfoboxRow, InfoboxRowDate, InfoboxLocationRow, InfoboxRowTime
+from .model.infoboxrow import InfoboxRow, InfoboxRowDate, InfoboxLocationRow, InfoboxRowTime
 from .model.link import Link
 from .model.osmElement import OSMElement
 from .placetemplatesextractor import PlacesTemplatesExtractor
