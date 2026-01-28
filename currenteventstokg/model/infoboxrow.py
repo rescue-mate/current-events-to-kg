@@ -4,9 +4,9 @@
 import datetime
 from typing import Optional, List, Dict
 
-from currenteventstokg.objects.article import Article
-from currenteventstokg.objects.link import Link
-from currenteventstokg.objects.osmElement import OSMElement
+from currenteventstokg.model.article import Article
+from currenteventstokg.model.link import Link
+from currenteventstokg.model.osmElement import OSMElement
 
 class InfoboxRow:
     def __init__(self, label: str, value: str, value_links: List[Link]):
@@ -15,7 +15,7 @@ class InfoboxRow:
         self.value_links: List[Link] = value_links
 
 class InfoboxLocationRow(InfoboxRow):
-    from currenteventstokg.objects.article import Article
+    from currenteventstokg.model.article import Article
 
     def __init__(
             self,
