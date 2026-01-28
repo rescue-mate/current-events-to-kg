@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 
 from rdflib import Graph
 
-from currenteventstokg.model.infoboxRow import InfoboxRow
+from currenteventstokg.model.infoboxrow import InfoboxRow
 from currenteventstokg.model.osmElement import OSMElement
 
 
