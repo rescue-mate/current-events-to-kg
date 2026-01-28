@@ -143,7 +143,7 @@ class DateTimeParser:
                             try:
                                 mon2 = months.index(group_dict['mon2'].lower()) + 1
 
-                            except ValueError as e:
+                            except ValueError:
                                 continue
 
                         else:  # no separate end month
@@ -162,7 +162,7 @@ class DateTimeParser:
                     elif 'on' in group_dict and group_dict['on']:
                         date_dict['ongoing'] = True
 
-                except ValueError as e:
+                except ValueError:
                     continue
                     
                 break
