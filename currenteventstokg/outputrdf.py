@@ -17,7 +17,7 @@ from . import (COY, WGS, GEO, WD, GN, SCHEMA, DCTERMS,
 from .graphconsistencykeeper import GraphConsistencyKeeper
 from .model.article import Article
 from .model.event import Event
-from .model.infoboxRow import InfoboxRowDate, InfoboxRowTime, InfoboxLocationRow
+from .model.infoboxrow import InfoboxRowDate, InfoboxRowTime, InfoboxLocationRow
 from .model.osmElement import OSMElement
 from .model.topic import Topic
 
@@ -78,7 +78,7 @@ class OutputRdf:
 
     @staticmethod
     def __get_event_id(event: Event) -> str:
-        date_ = event.date_
+        date_ = event.date
 
         return f'{date_.year:04}-{date_.month:02}-{date_.day:02}_{event.event_index}'
 
@@ -711,7 +711,7 @@ class OutputRdf:
                 Literal(event.category, datatype=XSD.string)
             ))
         
-        self.__add_isodatetime_from_date(base_graph, event_uri, event.date_)
+        self.__add_isodatetime_from_date(base_graph, event_uri, event.date)
 
         raw_graph.add((
             event_uri,
