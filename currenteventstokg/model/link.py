@@ -3,7 +3,7 @@
 
 from typing import Optional
 
-from currenteventstokg.objects.article import Article
+from currenteventstokg.model.article import Article
 
 
 class Link:
